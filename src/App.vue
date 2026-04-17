@@ -1,14 +1,28 @@
-<script setup lang="ts"></script>
+<script setup>
+import { onMounted } from 'vue'
+import Map from '@arcgis/core/Map'
+import MapView from '@arcgis/core/views/MapView'
+
+onMounted(() => {
+  const map = new Map({
+    basemap: 'dark-gray-vector',
+  })
+
+  const view = new MapView({
+    container: 'viewDiv',
+    map: map,
+    center: [-98, 39],
+    zoom: 3,
+  })
+})
+</script>
 
 <template>
-  <arcgis-map item-id="237b9584339446a0b56317b5962a4971">
-    <arcgis-zoom slot="top-left"></arcgis-zoom>
-    <arcgis-legend slot="bottom-right"></arcgis-legend>
-  </arcgis-map>
+  <div id="viewDiv"></div>
 </template>
 
 <style lang="scss" scoped>
-arcgis-map {
+#viewDiv {
   height: 100vh;
   width: 100%;
 }
