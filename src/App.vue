@@ -1,11 +1,15 @@
 <script setup lang="ts"></script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <arcgis-map item-id="237b9584339446a0b56317b5962a4971">
+    <arcgis-zoom slot="top-left"></arcgis-zoom>
+    <arcgis-legend slot="bottom-right"></arcgis-legend>
+  </arcgis-map>
 </template>
 
-<style scoped></style>
+<style lang="scss" scoped>
+arcgis-map {
+  height: 100vh;
+  width: 100%;
+}
+</style>
