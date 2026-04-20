@@ -3,3 +3,8 @@ body {
   height: 100%;
   margin: 0;
 }
+
+button,
+input[type='checkbox'] {
+  cursor: pointer;
+}
