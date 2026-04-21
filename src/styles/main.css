@@ -5,6 +5,11 @@ body {
 }
 
 button,
+select,
 input[type='checkbox'] {
   cursor: pointer;
+}
+
+p {
+  margin: 0;
 }

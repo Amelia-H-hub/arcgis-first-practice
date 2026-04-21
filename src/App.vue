@@ -13,15 +13,24 @@ import ScaleBar from '@arcgis/core/widgets/ScaleBar'
 import Extent from '@arcgis/core/geometry/Extent'
 import * as reactiveUtils from '@arcgis/core/core/reactiveUtils'
 import * as webMercatorUtils from '@arcgis/core/geometry/support/webMercatorUtils'
-import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js'
-import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js'
-import Graphic from '@arcgis/core/Graphic.js'
+import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel'
+import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
+import Graphic from '@arcgis/core/Graphic'
+import { identify } from '@arcgis/core/rest/identify'
+import IdentifyParameters from '@arcgis/core/rest/support/IdentifyParameters'
+import type { ClickEvent } from '@arcgis/core/views/input/types'
+import { getCounties } from '@/api/arcgis'
 
 interface ExtentData {
   xmin: string
   ymin: string
   xmax: string
   ymax: string
+}
+
+interface County {
+  countycode: string
+  countyname: string
 }
 
 const mapDiv = shallowRef<HTMLDivElement | null>(null)
@@ -41,7 +50,7 @@ const townLayer = new MapImageLayer({
   url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_Town_84/MapServer',
   title: '鄉鎮市區界圖層',
   visible: true,
-  opacity: 0.3,
+  opacity: 0.2,
   sublayers: [
     {
       id: 0,
@@ -117,7 +126,22 @@ const earthquakeLayer = new GeoJSONLayer({
   popupTemplate: earthquakePopup as any,
 })
 
+// 縣市界圖層
+const countyLayer = new FeatureLayer({
+  url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_County_84/MapServer/0',
+  title: '縣市界圖層',
+  visible: true,
+  opacity: 0.2,
+  outFields: ['*'],
+})
+
 const layers = ref<Layer[]>([])
+
+// 縣市下拉選單
+const counties = ref<County[]>([])
+
+// Highlight
+let currentHighlight: any = null
 
 // 鼠標經緯度
 const latLng = ref({ lat: '0.000000', lng: '0.000000' })
@@ -129,6 +153,12 @@ const mapExtent = ref<ExtentData>({
   xmax: '0.000000',
   ymax: '0.000000',
 })
+
+// 控制是否能選取縣市、鄉鎮
+const isChoosePlaceMode = ref<boolean>(false)
+
+// 選中之縣市、鄉鎮資料
+const selectedPlaceInfo = ref<any>(null)
 
 // Graphic ==================================================
 // GraphicLayer
@@ -149,16 +179,6 @@ const graphicName = ref<string>('')
 
 const lastCreatedGraphic = ref<Graphic | null>(null)
 
-// 地震圖層 - Popup 資訊
-const graphicPopup = {
-  title: '圖形資訊',
-  content: `
-    <p> GraphicID: {mag} </p>
-    <p> Name: {name} </p>
-    <p> 型態: {time} </p>
-  `,
-}
-
 // 加入圖層
 const addLayersToMap = (view: MapView) => {
   const allLayers = [
@@ -168,6 +188,7 @@ const addLayersToMap = (view: MapView) => {
     hotelsLayer,
     industrialLayer,
     earthquakeLayer,
+    countyLayer,
   ]
   view.map!.addMany(allLayers)
   layers.value = allLayers
@@ -183,10 +204,119 @@ const setupWidgets = (view: MapView) => {
   view.ui.move('zoom', 'top-right')
 }
 
+// 取得縣市下拉選單資料
+const handleGetCounties = async () => {
+  const response = await getCounties()
+  const xmlString = await response.data
+
+  const parser = new DOMParser()
+  const xmlDoc = parser.parseFromString(xmlString, 'text/xml')
+
+  const items = xmlDoc.getElementsByTagName('countyItem')
+
+  for (let i = 0; i < items.length; i++) {
+    const code = items[i]?.getElementsByTagName('countycode01')[0]?.textContent || ''
+    const name = items[i]?.getElementsByTagName('countyname')[0]?.textContent || ''
+
+    counties.value.push({
+      countycode: code,
+      countyname: name,
+    })
+  }
+}
+
+// 查詢縣市界
+const focusOnCounty = async (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const selectedCode = target.value
+
+  if (!selectedCode || selectedCode === '') {
+    view!.center = [121, 23.5]
+    view!.zoom = 7
+    return
+  }
+
+  const query = countyLayer.createQuery()
+  query.where = `COUNTYCODE = '${selectedCode}'`
+  query.returnGeometry = true
+
+  try {
+    const result = await countyLayer.queryFeatures(query)
+
+    if (result.features.length > 0) {
+      // highlight 所選區域
+      const layerView = await view!.whenLayerView(countyLayer)
+
+      if (currentHighlight) {
+        currentHighlight.remove()
+      }
+      currentHighlight = layerView.highlight(result.features[0]!)
+
+      // 前往所選區域
+      const targetExtent = result.features[0]!.geometry!.extent
+      view?.goTo(targetExtent!.expand(1.5))
+    }
+  } catch (error) {
+    console.error('查詢區域失敗', error)
+  }
+}
+
+// 取得縣市、鄉鎮資訊
+const getTownInfo = async (event: ClickEvent) => {
+  // MapImageLayer 回傳的是一張圖片，不像 FeatureLayer 一樣含有資料，不能用 hitTest()
+  const params = new IdentifyParameters()
+  params.tolerance = 3
+  params.layerIds = [0]
+  params.layerOption = 'top'
+  params.width = view!.width
+  params.height = view!.height
+  params.mapExtent = view?.extent
+  params.geometry = event.mapPoint
+
+  try {
+    const response = await identify(townLayer.url!, params)
+
+    if (response.results.length > 0) {
+      const result = response.results[0]
+      const townGraphic = result?.feature
+      const townAttributes = townGraphic?.attributes
+
+      console.log(townAttributes)
+
+      selectedPlaceInfo.value = townAttributes
+    }
+  } catch (error) {
+    console.error('取得鄉鎮資訊失敗', error)
+  }
+}
+
+// Graphic ========================================================
+// 刪除 Graphic
+const handleDeleteGraphic = async (event: ClickEvent) => {
+  const response = await view!.hitTest(event)
+  const results = response.results.filter((result) => {
+    return 'graphic' in result && result.layer === graphicsLayer
+  })
+
+  if (results.length > 0) {
+    const target = (results[0] as any).graphic
+
+    if (target) {
+      event.stopPropagation()
+      const confirmed = window.confirm('確定要刪除此圖形嗎？')
+      if (confirmed) {
+        graphicsLayer.remove(target)
+      } else {
+        view!.closePopup()
+      }
+    }
+  }
+}
+
 // 綁定事件監聽
 const setupEventListeners = (view: MapView) => {
-  // 顯示鼠標位置經緯度
-  view.on('pointer-move', (event) => {
+  view.on('pointer-move', async (event) => {
+    // 顯示鼠標位置經緯度
     const point = view!.toMap({ x: event.x, y: event.y })
     if (point) {
       latLng.value = {
@@ -194,6 +324,14 @@ const setupEventListeners = (view: MapView) => {
         lng: point.longitude?.toFixed(6) || '0.000000',
       }
     }
+
+    // 設定游標樣式
+    const response = await view!.hitTest(event)
+    const hit = response.results.some(
+      (result) => result.layer === countyLayer || result.layer === townLayer,
+    )
+
+    view.container!.style.cursor = isChoosePlaceMode.value && hit ? 'pointer' : 'default'
   })
 
   // Get Map Extent
@@ -214,25 +352,15 @@ const setupEventListeners = (view: MapView) => {
   )
 
   view.on('click', async (event) => {
-    if (!isDeleteMode.value) {
+    // 刪除 Graphic
+    if (isDeleteMode.value) {
+      handleDeleteGraphic(event)
       return
     }
 
-    const response = await view.hitTest(event)
-    const results = response.results.filter((result) => {
-      return 'graphic' in result && result.layer === graphicsLayer
-    })
-
-    if (results.length > 0) {
-      const hitResult = results[0] as any
-      const target = hitResult.graphic
-
-      if (target) {
-        const confirmed = window.confirm('確定要刪除此圖形嗎？')
-        if (confirmed) {
-          graphicsLayer.remove(target)
-        }
-      }
+    if (isChoosePlaceMode.value) {
+      getTownInfo(event)
+      return
     }
   })
 }
@@ -250,26 +378,35 @@ const initSketchTool = (view: MapView) => {
     },
   })
 
+  // 新增圖形時
   svm.on('create', (event) => {
     if (event.state === 'complete') {
       const newGraphic = event.graphic!
+      // 給 ID
       newGraphic.attributes = {
         id: crypto.randomUUID(),
+        geometryType: newGraphic.geometry!.type,
+      }
+
+      // Popup 資訊
+      newGraphic.popupTemplate = {
+        title: '圖形資訊',
+        content: `
+          <p> GraphicID: {id} </p>
+          <p> Name: {name} </p>
+          <p> 型態: {geometryType} </p>
+        `,
       }
 
       lastCreatedGraphic.value = newGraphic
 
       graphicName.value = ''
       showNameInput.value = true
-
-      if (event.tool === activeTool.value) {
-        svm.create(event.tool)
-      }
     }
   })
 }
 
-// 控制按鈕 class
+// 控制 svm 按鈕 class
 const selectTool = (tool: string) => {
   svm.cancel()
 
@@ -333,6 +470,11 @@ const cancelNaming = () => {
 const editGraphic = () => {
   selectTool('edit')
   svm.updateOnGraphicClick = !svm.updateOnGraphicClick
+  if (svm.updateOnGraphicClick) {
+    view!.popupEnabled = false
+  } else {
+    view!.popupEnabled = true
+  }
   isDeleteMode.value = false
 }
 
@@ -340,6 +482,11 @@ const editGraphic = () => {
 const deleteGraphic = () => {
   selectTool('delete')
   isDeleteMode.value = !isDeleteMode.value
+  if (isDeleteMode.value) {
+    view!.popupEnabled = false
+  } else {
+    view!.popupEnabled = true
+  }
   svm.updateOnGraphicClick = false
 }
 
@@ -374,6 +521,8 @@ onMounted(async () => {
 
   // 初始化繪圖工具
   initSketchTool(newView)
+
+  handleGetCounties()
 })
 
 onUnmounted(() => {
@@ -384,13 +533,45 @@ onUnmounted(() => {
 </script>
 <template>
   <div ref="mapDiv" class="map"></div>
-  <div class="layerList">
-    <ul>
-      <li v-for="layer in layers" :key="layer.id" class="layerList__item">
-        <input v-model="layer.visible" type="checkbox" :id="layer.id" />
-        <label :for="layer.id">{{ layer.title }}</label>
-      </li>
-    </ul>
+  <div class="filterContainer">
+    <div class="filterContainer__layerList">
+      <p>選擇圖層：</p>
+      <ul>
+        <li v-for="layer in layers" :key="layer.id" class="layerList__item">
+          <input v-model="layer.visible" type="checkbox" :id="layer.id" />
+          <label :for="layer.id">{{ layer.title }}</label>
+        </li>
+      </ul>
+    </div>
+    <div class="filterContainer__findCounty">
+      <label for="county">尋找城市：</label>
+      <select @change="focusOnCounty($event)" id="county">
+        <option value="">全台灣</option>
+        <option v-for="county in counties" :key="county.countycode" :value="county.countycode">
+          {{ county.countyname }}
+        </option>
+      </select>
+    </div>
+    <div class="filterContainer__selectPlace">
+      <div class="filterContainer__selectPlace--title">
+        <span>地圖互動查詢</span>
+        <p>點選台灣地圖獲取資訊</p>
+      </div>
+      <label class="filterContainer__selectPlace--switch">
+        <input v-model="isChoosePlaceMode" type="checkbox" />
+        <span></span>
+      </label>
+      <div v-if="isChoosePlaceMode && selectedPlaceInfo" class="filterContainer__selectPlace--Info">
+        <div>
+          <h3>{{ selectedPlaceInfo.COUNTYNAME }}</h3>
+          <p>城市代號：{{ selectedPlaceInfo.COUNTYCODE }}</p>
+        </div>
+        <div>
+          <h4>{{ selectedPlaceInfo.TOWNNAME }} {{ selectedPlaceInfo.TOWNENG }}</h4>
+          <p>鄉鎮市區代號：{{ selectedPlaceInfo.TOWNCODE }}</p>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="sketch">
     <button
@@ -473,33 +654,162 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.layerList {
+.filterContainer {
   position: absolute;
   top: 30px;
   left: 30px;
-  background-color: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  color: #333;
-  padding: 8px;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
 
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  &__layerList {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    color: #333;
+    padding: 8px;
+    width: 100%;
 
-    li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 0px;
-      cursor: pointer;
-      user-select: none;
+    p {
+      font-weight: 500;
+    }
 
-      label {
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0px;
         cursor: pointer;
+        user-select: none;
+
+        label {
+          cursor: pointer;
+        }
+      }
+    }
+  }
+
+  &__findCounty {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    color: #333;
+    padding: 8px;
+    width: 100%;
+
+    label {
+      font-weight: 500;
+    }
+
+    select {
+      background: none;
+      border: none;
+      width: 100%;
+      height: 40px;
+    }
+  }
+
+  &__selectPlace {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    width: 100%;
+
+    &--title {
+      display: flex;
+      flex-direction: column;
+
+      span {
+        font-weight: 500;
+        color: #333;
+      }
+
+      p {
+        font-size: 12px;
+        color: #555;
+      }
+    }
+
+    &--switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: 50px;
+      height: 24px;
+
+      input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      span {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+
+        &::before {
+          position: absolute;
+          content: '';
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: 0.4s;
+          border-radius: 50%;
+        }
+      }
+
+      input:checked + span {
+        background-color: #2196f3;
+
+        &::before {
+          transform: translateX(26px);
+        }
+      }
+    }
+
+    &--Info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      h3 {
+        margin: 0;
+      }
+
+      h4 {
+        margin: 0;
+      }
+
+      p {
+        font-size: 12px;
       }
     }
   }
