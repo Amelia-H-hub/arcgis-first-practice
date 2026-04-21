@@ -572,6 +572,9 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+    <div>
+      <router-link to="/coordinateConverter">前往坐標轉換服務</router-link>
+    </div>
   </div>
   <div class="sketch">
     <button
@@ -646,6 +649,8 @@ onUnmounted(() => {
     <div class="footer__latLng">經度: {{ latLng.lat }} | 緯度: {{ latLng.lng }}</div>
     <div class="footer_space"></div>
   </div>
+
+  <router-view />
 </template>
 
 <style lang="scss" scoped>
