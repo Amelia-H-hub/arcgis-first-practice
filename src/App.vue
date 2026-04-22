@@ -261,46 +261,5 @@ onUnmounted(() => {
   position: absolute;
   bottom: 30px;
   left: 50%;
-  // display: flex;
-  // justify-content: center;
-  // align-items: end;
-  // gap: 100px;
-  // transform: translateX(-50%);
-  // padding: 5px 10px;
-  // border-radius: 5px;
-
-  // &__extent {
-  //   background-color: rgba(255, 255, 255, 0.8);
-  //   backdrop-filter: blur(4px);
-  //   border: 1px solid #d1d1d1;
-  //   border-radius: 4px;
-  //   padding: 8px 15px;
-  //   table {
-  //     border-collapse: collapse;
-  //     font-size: 12px;
-
-  //     th {
-  //       text-align: left;
-  //       color: #888;
-  //       padding-right: 8px;
-  //       font-weight: 500;
-  //     }
-
-  //     td {
-  //       color: #000;
-  //       padding-right: 20px;
-  //     }
-  //   }
-  // }
-
-  // &__latLng {
-  //   background-color: rgba(255, 255, 255, 0.8);
-  //   backdrop-filter: blur(4px);
-  //   border: 1px solid #d1d1d1;
-  //   border-radius: 4px;
-  //   padding: 8px 15px;
-  //   font-size: 14px;
-  //   color: #333;
-  // }
 }
 </style>
