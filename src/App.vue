@@ -20,6 +20,7 @@ import { identify } from '@arcgis/core/rest/identify'
 import IdentifyParameters from '@arcgis/core/rest/support/IdentifyParameters'
 import type { ClickEvent } from '@arcgis/core/views/input/types'
 import { getCounties } from '@/api/arcgis'
+import CoordinateConverter from './conponents/coordinateConverter.vue'
 
 interface ExtentData {
   xmin: string
@@ -231,6 +232,9 @@ const focusOnCounty = async (event: Event) => {
   const selectedCode = target.value
 
   if (!selectedCode || selectedCode === '') {
+    if (currentHighlight) {
+      currentHighlight.remove()
+    }
     view!.center = [121, 23.5]
     view!.zoom = 7
     return
@@ -535,7 +539,7 @@ onUnmounted(() => {
   <div ref="mapDiv" class="map"></div>
   <div class="filterContainer">
     <div class="filterContainer__layerList">
-      <p>選擇圖層：</p>
+      <h4>選擇圖層：</h4>
       <ul>
         <li v-for="layer in layers" :key="layer.id" class="layerList__item">
           <input v-model="layer.visible" type="checkbox" :id="layer.id" />
@@ -544,7 +548,7 @@ onUnmounted(() => {
       </ul>
     </div>
     <div class="filterContainer__findCounty">
-      <label for="county">尋找城市：</label>
+      <h4>尋找城市：</h4>
       <select @change="focusOnCounty($event)" id="county">
         <option value="">全台灣</option>
         <option v-for="county in counties" :key="county.countycode" :value="county.countycode">
@@ -554,7 +558,7 @@ onUnmounted(() => {
     </div>
     <div class="filterContainer__selectPlace">
       <div class="filterContainer__selectPlace--title">
-        <span>地圖互動查詢</span>
+        <h4>地圖互動查詢</h4>
         <p>點選台灣地圖獲取資訊</p>
       </div>
       <label class="filterContainer__selectPlace--switch">
@@ -572,9 +576,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <div>
-      <router-link to="/coordinateConverter">前往坐標轉換服務</router-link>
-    </div>
+    <CoordinateConverter style="width: 100%"></CoordinateConverter>
   </div>
   <div class="sketch">
     <button
@@ -650,7 +652,7 @@ onUnmounted(() => {
     <div class="footer_space"></div>
   </div>
 
-  <router-view />
+  <!-- <router-view /> -->
 </template>
 
 <style lang="scss" scoped>
@@ -663,7 +665,7 @@ onUnmounted(() => {
   position: absolute;
   top: 30px;
   left: 30px;
-  width: 200px;
+  width: 250px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -678,10 +680,6 @@ onUnmounted(() => {
     color: #333;
     padding: 8px;
     width: 100%;
-
-    p {
-      font-weight: 500;
-    }
 
     ul {
       list-style: none;
@@ -713,15 +711,8 @@ onUnmounted(() => {
     padding: 8px;
     width: 100%;
 
-    label {
-      font-weight: 500;
-    }
-
     select {
-      background: none;
-      border: none;
       width: 100%;
-      height: 40px;
     }
   }
 
@@ -742,14 +733,9 @@ onUnmounted(() => {
       display: flex;
       flex-direction: column;
 
-      span {
-        font-weight: 500;
-        color: #333;
-      }
-
       p {
         font-size: 12px;
-        color: #555;
+        color: #444;
       }
     }
 
@@ -792,7 +778,7 @@ onUnmounted(() => {
       }
 
       input:checked + span {
-        background-color: #2196f3;
+        background-color: #60a2d8;
 
         &::before {
           transform: translateX(26px);
@@ -804,14 +790,6 @@ onUnmounted(() => {
       display: flex;
       flex-direction: column;
       gap: 6px;
-
-      h3 {
-        margin: 0;
-      }
-
-      h4 {
-        margin: 0;
-      }
 
       p {
         font-size: 12px;
@@ -835,7 +813,7 @@ onUnmounted(() => {
   padding: 6px;
 
   &__action {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
     border: none;
     border-radius: 8px;
     padding: 8px;

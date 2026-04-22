@@ -2,12 +2,34 @@ html,
 body {
   height: 100%;
   margin: 0;
+  font-size: 14px;
 }
 
 button,
 select,
 input[type='checkbox'] {
   cursor: pointer;
+}
+
+select {
+  background: none;
+  border: none;
+  height: 30px;
+  color: #333;
+  font-size: 14px;
+}
+
+input {
+  background: none;
+  border-radius: 6px;
+}
+
+h3 {
+  margin: 0;
+}
+
+h4 {
+  margin: 0;
 }
 
 p {
