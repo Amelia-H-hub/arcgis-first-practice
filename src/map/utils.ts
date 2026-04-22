@@ -22,7 +22,7 @@ export const formatPointerLocation = (view: MapView | SceneView, x: number, y: n
 }
 
 // 取得地圖 extent
-export const formatMapExtent = (view: MapView) => {
+export const formatMapExtent = (view: MapView | SceneView) => {
   const geoExtent = webMercatorUtils.webMercatorToGeographic(view.extent) as Extent
 
   return {
@@ -73,7 +73,11 @@ export const getCountyFeature = async (countycode: string, countyLayer: FeatureL
 }
 
 // 取得縣市、鄉鎮資訊
-export const getTownInfo = async (layer: MapImageLayer, mapPoint: Point, view: MapView) => {
+export const getTownInfo = async (
+  layer: MapImageLayer,
+  mapPoint: Point,
+  view: MapView | SceneView,
+) => {
   const params = new IdentifyParameters({
     tolerance: 3,
     layerIds: [0],
