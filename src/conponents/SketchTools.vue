@@ -1,17 +1,20 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel'
 import Graphic from '@arcgis/core/Graphic'
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
 import MapView from '@arcgis/core/views/MapView'
+import SceneView from '@arcgis/core/views/SceneView'
 import type { ClickEvent } from '@arcgis/core/views/input/types'
 
 const props = defineProps({
   graphicsLayer: {
     type: GraphicsLayer,
+    required: true,
   },
   view: {
-    type: MapView,
+    type: Object as () => MapView | SceneView,
+    required: true,
   },
 })
 
@@ -30,6 +33,11 @@ const graphicName = ref<string>('')
 
 const lastCreatedGraphic = ref<Graphic | null>(null)
 
+// 判斷畫點的類型
+const currentPointTool = computed(() => {
+  return props.view?.type === '3d' ? 'point' : 'multipoint'
+})
+
 // 控制 svm 按鈕 class
 const selectTool = (tool: string) => {
   svm.cancel()
@@ -42,7 +50,7 @@ const selectTool = (tool: string) => {
 }
 
 // 畫點、線、面
-const startDraw = (type: 'multipoint' | 'polyline' | 'polygon') => {
+const startDraw = (type: 'point' | 'multipoint' | 'polyline' | 'polygon') => {
   if (activeTool.value === type) {
     activeTool.value = ''
     svm.cancel()
@@ -187,9 +195,9 @@ onMounted(() => {
   <div>
     <div class="sketchTool">
       <button
-        @click="startDraw('multipoint')"
+        @click="startDraw(currentPointTool)"
         class="sketchTool__action"
-        :class="{ 'sketchTool__action--active': activeTool === 'multipoint' }"
+        :class="{ 'sketchTool__action--active': activeTool === currentPointTool }"
       >
         點
       </button>

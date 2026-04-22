@@ -1,4 +1,6 @@
+import View from '@arcgis/core/views/View.js'
 import MapView from '@arcgis/core/views/MapView'
+import SceneView from '@arcgis/core/views/SceneView'
 import MapImageLayer from '@arcgis/core/layers/MapImageLayer'
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
 import Point from '@arcgis/core/geometry/Point'
@@ -9,7 +11,7 @@ import * as webMercatorUtils from '@arcgis/core/geometry/support/webMercatorUtil
 import Extent from '@arcgis/core/geometry/Extent'
 
 // 取得鼠標位置經緯度
-export const formatPointerLocation = (view: MapView, x: number, y: number) => {
+export const formatPointerLocation = (view: MapView | SceneView, x: number, y: number) => {
   const point = view.toMap({ x, y })
   if (point) {
     return {

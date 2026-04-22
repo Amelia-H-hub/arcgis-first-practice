@@ -3,6 +3,13 @@ import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import Map from '@arcgis/core/Map'
 import MapView from '@arcgis/core/views/MapView'
 import Home from '@arcgis/core/widgets/Home'
+import Layer from '@arcgis/core/layers/Layer'
+import MapImageLayer from '@arcgis/core/layers/MapImageLayer'
+import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
+import FeatureLayerView from '@arcgis/core/views/layers/FeatureLayerView'
+import ScaleBar from '@arcgis/core/widgets/ScaleBar'
+import * as reactiveUtils from '@arcgis/core/core/reactiveUtils'
+import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
 import { createDefaultLayers } from '@/map/layers'
 import {
   formatPointerLocation,
@@ -16,14 +23,7 @@ import CountyDropdown from '@/conponents/CountyDropdown.vue'
 import PlaceInfo from '@/conponents/PlaceInfo.vue'
 import SketchTools from '@/conponents/SketchTools.vue'
 import MapFooter from '@/conponents/MapFooter.vue'
-import Layer from '@arcgis/core/layers/Layer'
-import MapImageLayer from '@arcgis/core/layers/MapImageLayer'
-import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
-import FeatureLayerView from '@arcgis/core/views/layers/FeatureLayerView'
-import ScaleBar from '@arcgis/core/widgets/ScaleBar'
-import * as reactiveUtils from '@arcgis/core/core/reactiveUtils'
-import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
-import CoordinateConverter from './conponents/CoordinateConverter.vue'
+import CoordinateConverter from '@/conponents/CoordinateConverter.vue'
 
 interface ExtentData {
   xmin: string
@@ -41,6 +41,9 @@ const mapDiv = shallowRef<HTMLDivElement | null>(null)
 let view = shallowRef<MapView | null>(null)
 
 const layers = shallowRef<Layer[]>([])
+
+// GraphicLayer
+const graphicsLayer = new GraphicsLayer()
 
 // 縣市下拉選單
 const counties = ref<County[]>([])
@@ -64,9 +67,6 @@ const isChoosePlaceMode = ref<boolean>(false)
 
 // 選中之縣市、鄉鎮資料
 const selectedPlaceInfo = ref<any>(null)
-
-// GraphicLayer
-const graphicsLayer = new GraphicsLayer()
 
 // 設定 widgets
 const setupWidgets = (view: MapView) => {
@@ -199,48 +199,67 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <div id="app-wrapper">
-    <nav class="global-nav">
-      <router-link to="/map2d" active-class="active-btn">2D 地圖</router-link>
-      <router-link to="/map3d" active-class="active-btn">3D 場景</router-link>
-    </nav>
+  <div class="map-container">
+    <div ref="mapDiv" class="map"></div>
+    <div class="filterContainer">
+      <LayerList :layers="layers"> </LayerList>
 
-    <router-view />
+      <CountyDropdown :counties="counties" @focusCounty="focusOnCounty"> </CountyDropdown>
 
-    <NotificationOverlay />
+      <PlaceInfo
+        v-model:isChoosePlaceMode="isChoosePlaceMode"
+        :selectedPlaceInfo="selectedPlaceInfo"
+      ></PlaceInfo>
+
+      <CoordinateConverter style="width: 100%"></CoordinateConverter>
+    </div>
+    <SketchTools
+      v-if="view"
+      :graphicsLayer="graphicsLayer"
+      :view="view"
+      class="sketch"
+    ></SketchTools>
+
+    <MapFooter :mapExtent="mapExtent" :latLng="latLng" class="footer"></MapFooter>
   </div>
+
+  <!-- <router-view /> -->
 </template>
 
 <style lang="scss" scoped>
-.global-nav {
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.map {
+  height: 100vh;
+  width: 100%;
+}
+
+.filterContainer {
   position: absolute;
-  top: 10px;
+  top: 60px;
   left: 30px;
-  z-index: 1000;
+  width: 250px;
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 5px;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
+  font-size: 14px;
+}
 
-  a {
-    text-decoration: none;
-    color: #333;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-weight: bold;
-    transition: all 0.3s ease;
+.sketch {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  z-index: 99;
+}
 
-    &:hover {
-      background: #d1d1d1;
-    }
-
-    &.active-btn {
-      background-color: #0079c1; /* ArcGIS 藍 */
-      color: white;
-    }
-  }
+.footer {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
 }
 </style>
