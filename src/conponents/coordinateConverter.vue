@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import proj4 from 'proj4'
 
 // 定義座標
@@ -44,6 +44,21 @@ const result = ref<number[]>([0, 0])
 
 const showResult = ref<boolean>(false)
 
+// 座標驗證：僅限數字及一個小數點
+const isValid = (coordinate: string) => {
+  if (coordinate === '') return true
+
+  const regex = /^[0-9]*(\.[0-9]*)?$/
+  return regex.test(coordinate)
+}
+
+const isLonValid = computed(() => isValid(inputLon.value))
+const isLatValid = computed(() => isValid(inputLat.value))
+const isSubmitDisabled = computed(() => {
+  return !isLonValid.value || !isLatValid.value || inputLon.value === '' || inputLat.value === ''
+})
+
+// 轉換座標成經緯度
 const convertCoordinate = () => {
   if (!selectedFromSystem.value || selectedFromSystem.value === '') {
     window.alert('請選擇欲轉換之座標系統')
@@ -89,10 +104,13 @@ const convertCoordinate = () => {
           <input v-model="inputLat" id="coordinate" />
         </div>
       </div>
-      <button @click="convertCoordinate">取得經緯度 -></button>
+      <p v-if="!isLonValid || !isLatValid" class="error-text">
+        格式錯誤：請確認是否包含非數字或多個小數點。
+      </p>
+      <button @click="convertCoordinate" :disabled="isSubmitDisabled">取得經緯度 -></button>
     </div>
     <div v-show="showResult" class="convertResult">
-      <p>此座標於 {{ selectedFromSystem }} 系統為：</p>
+      <p>此 {{ selectedFromSystem }} 座標經緯度為：</p>
       <p class="convertResult__value">經度：{{ result[0]!.toFixed(6) }}</p>
       <p class="convertResult__value">緯度：{{ result[1]!.toFixed(6) }}</p>
     </div>
@@ -168,6 +186,10 @@ const convertCoordinate = () => {
           }
         }
       }
+    }
+
+    .error-text {
+      color: red;
     }
 
     button {

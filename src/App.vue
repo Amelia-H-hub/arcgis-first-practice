@@ -202,7 +202,7 @@ onUnmounted(() => {
   <div id="app-wrapper">
     <nav class="global-nav">
       <router-link to="/map2d" active-class="active-btn">2D 地圖</router-link>
-      <router-link to="/map3d" active-class="active-btn">3D 場景</router-link>
+      <router-link to="/map3d" active-class="active-btn">3D 圖台</router-link>
     </nav>
 
     <router-view />
