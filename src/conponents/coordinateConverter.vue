@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import proj4 from 'proj4'
 
-// 定義座標
+// 定義坐標
 proj4.defs([
   // WGS84
   ['WGS84', '+proj=longlat +datum=WGS84 +no_defs +type=crs'],
@@ -44,7 +44,7 @@ const result = ref<number[]>([0, 0])
 
 const showResult = ref<boolean>(false)
 
-// 座標驗證：僅限數字及一個小數點
+// 坐標驗證：僅限數字及一個小數點
 const isValid = (coordinate: string) => {
   if (coordinate === '') return true
 
@@ -58,15 +58,15 @@ const isSubmitDisabled = computed(() => {
   return !isLonValid.value || !isLatValid.value || inputLon.value === '' || inputLat.value === ''
 })
 
-// 轉換座標成經緯度
+// 轉換坐標成經緯度
 const convertCoordinate = () => {
   if (!selectedFromSystem.value || selectedFromSystem.value === '') {
-    window.alert('請選擇欲轉換之座標系統')
+    window.alert('請選擇欲轉換之坐標系統')
     return
   }
 
   if (!inputLon.value || !inputLat.value) {
-    window.alert('請輸入座標')
+    window.alert('請輸入坐標')
     return
   }
 
@@ -75,25 +75,25 @@ const convertCoordinate = () => {
     result.value = proj4(selectedFromSystem.value, 'WGS84', coordinate)
     showResult.value = true
   } catch (error) {
-    console.error('座標轉換失敗', error)
+    console.error('坐標轉換失敗', error)
   }
 }
 </script>
 
 <template>
   <div class="container">
-    <h4>轉換座標至經緯度 (WGS84)</h4>
+    <h4>轉換坐標至經緯度 (WGS84)</h4>
     <div class="systemSelect">
       <label for="fromSystem"></label>
       <select v-model="selectedFromSystem" id="fromSystem">
-        <option disabled value="">請選擇目前座標系統</option>
+        <option disabled value="">請選擇目前坐標系統</option>
         <option v-for="system in coordinateSystems" :key="system" :value="system">
           {{ system }}
         </option>
       </select>
     </div>
     <div class="coordinateForm">
-      <label>請輸入欲轉換之座標：</label>
+      <label>請輸入欲轉換之坐標：</label>
       <div class="coordinateForm__inputGroup">
         <div class="coordinateForm__inputGroup--item">
           <span>X:</span>
@@ -110,7 +110,7 @@ const convertCoordinate = () => {
       <button @click="convertCoordinate" :disabled="isSubmitDisabled">取得經緯度 -></button>
     </div>
     <div v-show="showResult" class="convertResult">
-      <p>此 {{ selectedFromSystem }} 座標經緯度為：</p>
+      <p>此 {{ selectedFromSystem }} 坐標經緯度為：</p>
       <p class="convertResult__value">經度：{{ result[0]!.toFixed(6) }}</p>
       <p class="convertResult__value">緯度：{{ result[1]!.toFixed(6) }}</p>
     </div>
