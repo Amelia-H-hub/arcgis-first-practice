@@ -8,6 +8,13 @@ const props = defineProps({
     default: [],
   },
 })
+
+const emit = defineEmits(['toggleCheckbox'])
+
+const toggleCheckbox = (layerId: string, event: Event) => {
+  const isChecked = (event.target as HTMLInputElement).checked
+  emit('toggleCheckbox', layerId, isChecked)
+}
 </script>
 
 <template>
@@ -15,7 +22,12 @@ const props = defineProps({
     <h4>選擇圖層：</h4>
     <ul>
       <li v-for="layer in layers" :key="layer.id">
-        <input v-model="layer.visible" type="checkbox" :id="layer.id" />
+        <input
+          @change="toggleCheckbox(layer.id, $event)"
+          v-model="layer.visible"
+          type="checkbox"
+          :id="layer.id"
+        />
         <label :for="layer.id">{{ layer.title }}</label>
       </li>
     </ul>

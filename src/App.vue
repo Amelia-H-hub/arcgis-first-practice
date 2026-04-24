@@ -11,11 +11,6 @@ import {
   getCountyFeature,
   getTownInfo,
 } from '@/map/utils'
-import LayerList from '@/conponents/LayerList.vue'
-import CountyDropdown from '@/conponents/CountyDropdown.vue'
-import PlaceInfo from '@/conponents/PlaceInfo.vue'
-import SketchTools from '@/conponents/SketchTools.vue'
-import MapFooter from '@/conponents/MapFooter.vue'
 import Layer from '@arcgis/core/layers/Layer'
 import MapImageLayer from '@arcgis/core/layers/MapImageLayer'
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer'
@@ -23,7 +18,6 @@ import FeatureLayerView from '@arcgis/core/views/layers/FeatureLayerView'
 import ScaleBar from '@arcgis/core/widgets/ScaleBar'
 import * as reactiveUtils from '@arcgis/core/core/reactiveUtils'
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
-import CoordinateConverter from './conponents/CoordinateConverter.vue'
 
 interface ExtentData {
   xmin: string

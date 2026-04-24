@@ -18,6 +18,7 @@ import {
   getCountyFeature,
   getTownInfo,
 } from '@/map/utils'
+import { useMapTools } from '@/map/mapTools'
 import LayerList from '@/conponents/LayerList.vue'
 import CountyDropdown from '@/conponents/CountyDropdown.vue'
 import PlaceInfo from '@/conponents/PlaceInfo.vue'
@@ -38,12 +39,24 @@ interface ExtentData {
 }
 
 const mapDiv = shallowRef<HTMLDivElement | null>(null)
-let view = shallowRef<SceneView | null>(null)
+let map: Map
+let view: SceneView | null
 
 const layers = shallowRef<Layer[]>([])
 
 // GraphicLayer
-const graphicsLayer = new GraphicsLayer()
+const graphicsLayer = new GraphicsLayer({
+  id: 'sketchLayer',
+  elevationInfo: {
+    mode: 'on-the-ground', // 讓圖形貼在地面
+  },
+})
+
+// 初始化 sketch view model
+const { init } = useMapTools()
+
+// County 下拉選單 component
+const countyDropdownRef = ref<InstanceType<typeof CountyDropdown> | null>(null)
 
 // 縣市下拉選單
 const counties = ref<County[]>([])
@@ -67,6 +80,57 @@ const isChoosePlaceMode = ref<boolean>(false)
 
 // 選中之縣市、鄉鎮資料
 const selectedPlaceInfo = ref<any>(null)
+
+// 初始化地圖
+const initMap = () => {
+  // Create a Map instance
+  map = new Map({
+    basemap: 'satellite',
+  })
+  map.add(graphicsLayer)
+
+  // Create a MapView instance
+  const newView = new SceneView({
+    container: mapDiv.value!,
+    map: map,
+    center: [121, 23.5], // set the center of the map to Taiwan
+    zoom: 7,
+    ui: {
+      components: ['zoom'],
+    },
+  })
+
+  view = newView
+
+  // 把 view 跟 graphicsLayer 傳給 mapTools
+  init(view, graphicsLayer)
+
+  // 設定 widgets
+  setupWidgets(view)
+
+  // 綁定事件監聽
+  setupEventListeners(newView)
+}
+
+// 動態加入/顯示圖層
+const handleLayerToggle = (layerId: string, isChecked: boolean) => {
+  const layer = map.findLayerById(layerId)
+
+  if (isChecked) {
+    if (!layer) {
+      const targetLayer = layers.value.find((layer: Layer) => layer.id === layerId)
+      if (targetLayer) {
+        map.add(targetLayer)
+      }
+    } else {
+      layer.visible = true
+    }
+  } else {
+    if (layer) {
+      layer.visible = false
+    }
+  }
+}
 
 // 設定 widgets
 const setupWidgets = (view: SceneView) => {
@@ -134,23 +198,33 @@ const focusOnCounty = async (countyCode: string) => {
   }
 
   if (!countyCode || countyCode === '') {
-    view.value!.goTo({ center: [121, 23.5], zoom: 7 })
+    view!.goTo({ center: [121, 23.5], zoom: 7 })
     return
   }
 
-  const countyLayer = view.value!.map?.layers.find((layer) => layer.id === 'countyLayer')
+  const countyLayer = view!.map?.layers.find((layer) => layer.id === 'countyLayer')
+
+  if (!countyLayer || !countyLayer.visible) {
+    window.alert('請先勾選縣市界圖層')
+    if (countyDropdownRef.value) {
+      countyDropdownRef.value.resetDropdown()
+    }
+    return
+  }
+
+  countyLayer.visible = true
 
   try {
     const feature = await getCountyFeature(countyCode, countyLayer as FeatureLayer)
 
     if (feature) {
       // highlight 所選區域
-      const layerView = (await view.value!.whenLayerView(countyLayer!)) as FeatureLayerView
+      const layerView = (await view!.whenLayerView(countyLayer!)) as FeatureLayerView
       currentHighlight = layerView.highlight(feature)
 
       // 前往所選區域
       const targetExtent = feature.geometry!.extent
-      view.value!.goTo(targetExtent!.expand(1.5))
+      view!.goTo(targetExtent!.expand(1.5))
     }
   } catch (error) {
     console.error('查詢區域失敗', error)
@@ -166,31 +240,8 @@ onMounted(async () => {
   const defaultLayers = createDefaultLayers()
   layers.value = defaultLayers
 
-  // Create a Map instance
-  const map = new Map({
-    basemap: 'satellite',
-    layers: layers.value,
-  })
-  map.add(graphicsLayer)
-
-  // Create a MapView instance
-  const newView = new SceneView({
-    container: mapDiv.value!,
-    map: map,
-    center: [121, 23.5], // set the center of the map to Taiwan
-    zoom: 7,
-    ui: {
-      components: ['zoom'],
-    },
-  })
-
-  view.value = newView
-
-  // 設定 widgets
-  setupWidgets(view.value)
-
-  // 綁定事件監聽
-  setupEventListeners(newView)
+  // 初始化地圖
+  initMap()
 
   // 取得 counties 下拉選單
   try {
@@ -201,9 +252,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (view.value) {
-    view.value!.destroy()
-    view.value = null
+  if (view) {
+    view.destroy()
+    view = null
   }
 })
 </script>
@@ -212,9 +263,10 @@ onUnmounted(() => {
   <div class="map-container">
     <div ref="mapDiv" class="map"></div>
     <div class="filterContainer">
-      <LayerList :layers="layers"> </LayerList>
+      <LayerList :layers="layers" @toggleCheckbox="handleLayerToggle"> </LayerList>
 
-      <CountyDropdown :counties="counties" @focusCounty="focusOnCounty"> </CountyDropdown>
+      <CountyDropdown :counties="counties" @focusCounty="focusOnCounty" ref="countyDropdownRef">
+      </CountyDropdown>
 
       <PlaceInfo
         v-model:isChoosePlaceMode="isChoosePlaceMode"
@@ -226,7 +278,7 @@ onUnmounted(() => {
     <SketchTools
       v-if="view"
       :graphicsLayer="graphicsLayer"
-      :view="view"
+      :mapType="'3D'"
       class="sketch"
     ></SketchTools>
     <MapFooter :mapExtent="mapExtent" :latLng="latLng" class="footer"></MapFooter>

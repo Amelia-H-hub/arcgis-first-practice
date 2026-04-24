@@ -13,7 +13,7 @@ export const createDefaultLayers = () => {
       'https://wmts.nlsc.gov.tw/wmts/EMAP2/default/GoogleMapsCompatible/{level}/{row}/{col}',
     id: 'tiledLayer',
     title: '國土測繪圖資',
-    visible: true,
+    visible: false,
   })
 
   // 鄉鎮市區界圖層
@@ -21,7 +21,7 @@ export const createDefaultLayers = () => {
     url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_Town_84/MapServer',
     id: 'townLayer',
     title: '鄉鎮市區界圖層',
-    visible: true,
+    visible: false,
     opacity: 0.2,
     sublayers: [
       {
@@ -36,7 +36,7 @@ export const createDefaultLayers = () => {
     url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_POI/MapServer/1',
     id: 'gasStationLayer',
     title: '加油站圖層',
-    visible: true,
+    visible: false,
   })
 
   // 飯店旅館圖層
@@ -44,7 +44,7 @@ export const createDefaultLayers = () => {
     url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_POI/MapServer/0',
     id: 'hotelsLayer',
     title: '飯店旅館圖層',
-    visible: true,
+    visible: false,
   })
 
   // 工業區圖層
@@ -52,7 +52,7 @@ export const createDefaultLayers = () => {
     url: 'https://richimap1.richitech.com.tw/arcgis/services/CBB_Practice/CBB_Practice_Industry_84/MapServer/WMSServer?request=GetCapabilities&service=WMS',
     id: 'industrialLayer',
     title: '工業區圖層',
-    visible: true,
+    visible: false,
   })
 
   // 地震圖層 - Popup 資訊
@@ -97,7 +97,7 @@ export const createDefaultLayers = () => {
     definitionExpression: 'mag > 3',
     id: 'earthquakeLayer',
     title: '近一個月地震',
-    visible: true,
+    visible: false,
     renderer: earthquakeRenderer as any,
     popupTemplate: earthquakePopup as any,
   })
@@ -107,7 +107,7 @@ export const createDefaultLayers = () => {
     url: 'https://richimap1.richitech.com.tw/arcgis/rest/services/CBB_Practice/CBB_Practice_County_84/MapServer/0',
     id: 'countyLayer',
     title: '縣市界圖層',
-    visible: true,
+    visible: false,
     opacity: 0.2,
     outFields: ['*'],
   })

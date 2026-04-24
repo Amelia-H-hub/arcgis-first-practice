@@ -6,188 +6,177 @@ import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer'
 import MapView from '@arcgis/core/views/MapView'
 import SceneView from '@arcgis/core/views/SceneView'
 import type { ClickEvent } from '@arcgis/core/views/input/types'
+import {
+  useMapTools,
+  activeTool,
+  isDeleteMode,
+  showNameInput,
+  graphicName,
+  lastCreatedGraphic,
+} from '@/map/mapTools'
 
 const props = defineProps({
   graphicsLayer: {
     type: GraphicsLayer,
     required: true,
   },
-  view: {
-    type: Object as () => MapView | SceneView,
+  mapType: {
+    type: String,
     required: true,
   },
 })
 
 // Sketch View Model
-let svm: SketchViewModel
+// let svm: SketchViewModel
+
+const {
+  toggleStartDraw,
+  toggleSaveGraphicName,
+  toggleCancelNaming,
+  toggleEditGraphic,
+  toggleDeleteGraphic,
+} = useMapTools()
 
 // 控制按鈕 class
-const activeTool = ref<string>('')
+// const activeTool = ref<string>('')
 
 // 控制能否刪除 graphic
-const isDeleteMode = ref<Boolean>(false)
+// const isDeleteMode = ref<Boolean>(false)
 
-const showNameInput = ref<Boolean>(false)
+// const showNameInput = ref<Boolean>(false)
 
-const graphicName = ref<string>('')
+// const graphicName = ref<string>('')
 
-const lastCreatedGraphic = ref<Graphic | null>(null)
+// const lastCreatedGraphic = ref<Graphic | null>(null)
 
 // 判斷畫點的類型
 const currentPointTool = computed(() => {
-  return props.view?.type === '3d' ? 'point' : 'multipoint'
+  return props.mapType === '3D' ? 'point' : 'multipoint'
 })
 
 // 控制 svm 按鈕 class
-const selectTool = (tool: string) => {
-  svm.cancel()
+// const selectTool = (tool: string) => {
+//   svm.cancel()
 
-  if (activeTool.value === tool) {
-    activeTool.value = ''
-  } else {
-    activeTool.value = tool
-  }
-}
+//   if (activeTool.value === tool) {
+//     activeTool.value = ''
+//   } else {
+//     activeTool.value = tool
+//   }
+// }
 
 // 畫點、線、面
 const startDraw = (type: 'point' | 'multipoint' | 'polyline' | 'polygon') => {
-  if (activeTool.value === type) {
-    activeTool.value = ''
-    svm.cancel()
-  } else {
-    activeTool.value = type
-    svm.create(type)
-  }
-  svm.updateOnGraphicClick = false
-  isDeleteMode.value = false
+  toggleStartDraw(type)
+  // if (activeTool.value === type) {
+  //   activeTool.value = ''
+  //   svm.cancel()
+  // } else {
+  //   activeTool.value = type
+  //   svm.create(type)
+  // }
+  // svm.updateOnGraphicClick = false
+  // isDeleteMode.value = false
 }
 
 // 儲存圖形名字
 const saveGraphicName = () => {
-  if (lastCreatedGraphic.value && lastCreatedGraphic.value.geometry) {
-    if (!graphicName.value) {
-      window.alert('請輸入圖形名稱')
-      return
-    }
-
-    lastCreatedGraphic.value.attributes = {
-      ...lastCreatedGraphic.value.attributes,
-      name: graphicName.value,
-    }
-
-    const type = lastCreatedGraphic.value!.geometry.type
-
-    if (type === 'point' || type === 'polyline' || type === 'polygon' || type === 'multipoint') {
-      svm.create(type)
-    }
-  }
-
-  showNameInput.value = false
+  toggleSaveGraphicName()
 }
 
 // 取消圖形命名
 const cancelNaming = () => {
-  if (lastCreatedGraphic.value) {
-    const confirmed = window.confirm('確定取消命名此圖形嗎？(一旦取消命名圖形即同時刪除)')
-
-    if (confirmed) {
-      showNameInput.value = false
-      props.graphicsLayer!.remove(lastCreatedGraphic.value as any)
-      lastCreatedGraphic.value = null
-    }
-  }
+  toggleCancelNaming()
 }
 
 // 按下編輯 graphic 按鈕
 const editGraphic = () => {
-  selectTool('edit')
-  svm.updateOnGraphicClick = !svm.updateOnGraphicClick
-  if (svm.updateOnGraphicClick) {
-    props.view!.popupEnabled = false
-  } else {
-    props.view!.popupEnabled = true
-  }
-  isDeleteMode.value = false
+  toggleEditGraphic()
+  //   selectTool('edit')
+  //   svm.updateOnGraphicClick = !svm.updateOnGraphicClick
+  //   if (svm.updateOnGraphicClick) {
+  //     props.view!.popupEnabled = false
+  //   } else {
+  //     props.view!.popupEnabled = true
+  //   }
+  //   isDeleteMode.value = false
 }
 
 // 按下刪除 graphic 按鈕
 const deleteGraphic = () => {
-  selectTool('delete')
-  isDeleteMode.value = !isDeleteMode.value
-  if (isDeleteMode.value) {
-    props.view!.popupEnabled = false
-  } else {
-    props.view!.popupEnabled = true
-  }
-  svm.updateOnGraphicClick = false
+  toggleDeleteGraphic()
+  //   selectTool('delete')
+  //   isDeleteMode.value = !isDeleteMode.value
+  //   if (isDeleteMode.value) {
+  //     props.view!.popupEnabled = false
+  //   } else {
+  //     props.view!.popupEnabled = true
+  //   }
+  //   svm.updateOnGraphicClick = false
 }
 
 // 刪除 Graphic
-const handleDeleteGraphic = async (event: ClickEvent) => {
-  const response = await props.view!.hitTest(event)
-  const results = response.results.filter((result) => {
-    return 'graphic' in result && result.layer === props.graphicsLayer
-  })
+// const handleDeleteGraphic = async (event: ClickEvent) => {
+//   const response = await props.view!.hitTest(event)
+//   const results = response.results.filter((result) => {
+//     return 'graphic' in result && result.layer === props.graphicsLayer
+//   })
 
-  if (results.length > 0) {
-    const target = (results[0] as any).graphic
+//   if (results.length > 0) {
+//     const target = (results[0] as any).graphic
 
-    if (target) {
-      event.stopPropagation()
-      const confirmed = window.confirm('確定要刪除此圖形嗎？')
-      if (confirmed) {
-        props.graphicsLayer!.remove(target)
-      } else {
-        props.view!.closePopup()
-      }
-    }
-  }
-}
+//     if (target) {
+//       event.stopPropagation()
+//       const confirmed = window.confirm('確定要刪除此圖形嗎？')
+//       if (confirmed) {
+//         props.graphicsLayer!.remove(target)
+//       } else {
+//         props.view!.closePopup()
+//       }
+//     }
+//   }
+// }
 
 onMounted(() => {
   // 初始化 sketch view model
-  svm = new SketchViewModel({
-    view: props.view,
-    layer: props.graphicsLayer,
-    updateOnGraphicClick: false,
-    defaultUpdateOptions: {
-      tool: 'reshape',
-    },
-  })
+  // svm = new SketchViewModel({
+  //   view: props.view,
+  //   layer: props.graphicsLayer,
+  //   updateOnGraphicClick: false,
+  //   defaultUpdateOptions: {
+  //     tool: 'reshape',
+  //   },
+  // })
   // 新增圖形時
-  svm.on('create', (event) => {
-    if (event.state === 'complete') {
-      const newGraphic = event.graphic!
-      // 給 ID
-      newGraphic.attributes = {
-        id: crypto.randomUUID(),
-        geometryType: newGraphic.geometry!.type,
-      }
-
-      // Popup 資訊
-      newGraphic.popupTemplate = {
-        title: '圖形資訊',
-        content: `
-          <p> GraphicID: {id} </p>
-          <p> Name: {name} </p>
-          <p> 型態: {geometryType} </p>
-        `,
-      }
-
-      lastCreatedGraphic.value = newGraphic
-
-      graphicName.value = ''
-      showNameInput.value = true
-    }
-  })
-
+  // svm.on('create', (event) => {
+  //   if (event.state === 'complete') {
+  //     const newGraphic = event.graphic!
+  //     // 給 ID
+  //     newGraphic.attributes = {
+  //       id: crypto.randomUUID(),
+  //       geometryType: newGraphic.geometry!.type,
+  //     }
+  //     // Popup 資訊
+  //     newGraphic.popupTemplate = {
+  //       title: '圖形資訊',
+  //       content: `
+  //         <p> GraphicID: {id} </p>
+  //         <p> Name: {name} </p>
+  //         <p> 型態: {geometryType} </p>
+  //       `,
+  //     }
+  //     lastCreatedGraphic.value = newGraphic
+  //     graphicName.value = ''
+  //     showNameInput.value = true
+  //   }
+  // })
   // 監聽 view
-  props.view!.on('click', async (event) => {
-    // 刪除 Graphic
-    if (isDeleteMode.value) {
-      await handleDeleteGraphic(event)
-    }
-  })
+  // props.view!.on('click', async (event) => {
+  //   // 刪除 Graphic
+  //   if (isDeleteMode.value) {
+  //     await handleDeleteGraphic(event)
+  //   }
+  // })
 })
 </script>
 
