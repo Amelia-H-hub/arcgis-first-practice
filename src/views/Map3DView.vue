@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, onMounted, onUnmounted, shallowRef, nextTick } from 'vue'
 import Map from '@arcgis/core/Map'
 import SceneView from '@arcgis/core/views/SceneView'
 import Home from '@arcgis/core/widgets/Home'
@@ -53,7 +53,7 @@ const graphicsLayer = new GraphicsLayer({
 })
 
 // 初始化 sketch view model
-const { init } = useMapTools()
+const { init, updateScale, scaleLabel, scaleBarWidth } = useMapTools()
 
 // County 下拉選單 component
 const countyDropdownRef = ref<InstanceType<typeof CountyDropdown> | null>(null)
@@ -114,12 +114,21 @@ const initMap = () => {
 
 // 動態加入/顯示圖層
 const handleLayerToggle = (layerId: string, isChecked: boolean) => {
+  if ((layerId === 'townLayer' && !isChecked) || (layerId === 'countyLayer' && !isChecked)) {
+    if (isChoosePlaceMode.value) {
+      isChoosePlaceMode.value = false
+      selectedPlaceInfo.value = null
+      window.alert('關閉此圖層將會同時關閉地圖互動查詢功能')
+    }
+  }
+
   const layer = map.findLayerById(layerId)
 
   if (isChecked) {
     if (!layer) {
       const targetLayer = layers.value.find((layer: Layer) => layer.id === layerId)
       if (targetLayer) {
+        targetLayer.visible = true
         map.add(targetLayer)
       }
     } else {
@@ -136,24 +145,24 @@ const handleLayerToggle = (layerId: string, isChecked: boolean) => {
 const setupWidgets = (view: SceneView) => {
   view.when(() => {
     const homeBtn = new Home({ view })
-    // const scaleBar = new ScaleBar({
-    //   view: view as any,
-    //   unit: 'metric',
-    //   style: 'line',
-    // })
+    const scaleBar = new ScaleBar({
+      view: view as any,
+      unit: 'metric',
+      style: 'line',
+    })
 
     view.ui.add(homeBtn, 'top-right')
-    // view.ui.add(scaleBar, 'bottom-right')
+    view.ui.add(scaleBar, 'bottom-right')
     view.ui.move('zoom', 'top-right')
   })
 }
 
 // 綁定事件監聽
 const setupEventListeners = (view: SceneView) => {
-  const townLayer = view.map?.layers.find((layer) => layer.id === 'townLayer')
-  const countyLayer = view.map?.layers.find((layer) => layer.id === 'countyLayer')
-
   view.on('pointer-move', async (event) => {
+    const townLayer = view.map?.layers.find((layer) => layer.id === 'townLayer')
+    const countyLayer = view.map?.layers.find((layer) => layer.id === 'countyLayer')
+
     // 顯示鼠標位置經緯度
     const pointerLocation = formatPointerLocation(view, event.x, event.y)
     if (pointerLocation) {
@@ -169,20 +178,25 @@ const setupEventListeners = (view: SceneView) => {
     view.container!.style.cursor = isChoosePlaceMode.value && hit ? 'pointer' : 'default'
   })
 
-  // Get Map Extent
   reactiveUtils.watch(
     () => view?.stationary,
     (stationary) => {
       if (stationary) {
+        // Get Map Extent
         const extentResult = formatMapExtent(view)
         if (extentResult) {
           mapExtent.value = extentResult
         }
+
+        // Get Scaler Bar
+        updateScale(view)
       }
     },
   )
 
   view.on('click', async (event) => {
+    const townLayer = view.map?.layers.find((layer) => layer.id === 'townLayer')
+
     if (isChoosePlaceMode.value) {
       const townAttributes = await getTownInfo(townLayer as MapImageLayer, event.mapPoint, view)
       selectedPlaceInfo.value = townAttributes
@@ -231,6 +245,22 @@ const focusOnCounty = async (countyCode: string) => {
   }
 }
 
+// 點選地圖顯示地點資訊
+const handleChoosePlaceModeChange = async (newModeValue: boolean) => {
+  isChoosePlaceMode.value = newModeValue
+
+  if (newModeValue && view) {
+    const townLayer = map.findLayerById('townLayer')
+    const countyLayer = map.findLayerById('countyLayer')
+
+    if (!townLayer || !countyLayer) {
+      window.alert('請開啟鄉鎮市區界圖層及縣市界圖層')
+      await nextTick()
+      isChoosePlaceMode.value = false
+    }
+  }
+}
+
 onMounted(async () => {
   if (!mapDiv.value) {
     return
@@ -269,8 +299,13 @@ onUnmounted(() => {
       </CountyDropdown>
 
       <PlaceInfo
-        v-model:isChoosePlaceMode="isChoosePlaceMode"
+        :isChoosePlaceMode="isChoosePlaceMode"
         :selectedPlaceInfo="selectedPlaceInfo"
+        @update:isChoosePlaceMode="
+          (value) => {
+            handleChoosePlaceModeChange(value)
+          }
+        "
       ></PlaceInfo>
 
       <CoordinateConverter style="width: 100%"></CoordinateConverter>
@@ -282,6 +317,10 @@ onUnmounted(() => {
       class="sketch"
     ></SketchTools>
     <MapFooter :mapExtent="mapExtent" :latLng="latLng" class="footer"></MapFooter>
+    <div class="customScaleBar">
+      <div class="customScaleBar__label">{{ scaleLabel }}</div>
+      <div class="customScaleBar__bar" :style="{ width: scaleBarWidth + 'px' }"></div>
+    </div>
   </div>
 </template>
 
@@ -320,5 +359,26 @@ onUnmounted(() => {
   position: absolute;
   bottom: 30px;
   left: 50%;
+}
+
+.customScaleBar {
+  position: absolute;
+  bottom: 30px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 5px;
+  border-radius: 2px;
+
+  &__bar {
+    height: 4px;
+    border: 2px solid #333;
+    border-top: none; /* 做成一個 ㄩ 字型 */
+  }
+
+  &__label {
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 2px;
+  }
 }
 </style>

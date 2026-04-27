@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, onMounted, onUnmounted, shallowRef, nextTick } from 'vue'
 import Map from '@arcgis/core/Map'
 import MapView from '@arcgis/core/views/MapView'
 import Home from '@arcgis/core/widgets/Home'
@@ -109,12 +109,21 @@ const initMap = () => {
 
 // 動態加入/顯示圖層
 const handleLayerToggle = (layerId: string, isChecked: boolean) => {
+  if ((layerId === 'townLayer' && !isChecked) || (layerId === 'countyLayer' && !isChecked)) {
+    if (isChoosePlaceMode.value) {
+      isChoosePlaceMode.value = false
+      selectedPlaceInfo.value = null
+      window.alert('關閉此圖層將會同時關閉地圖互動查詢功能')
+    }
+  }
+
   const layer = map.findLayerById(layerId)
 
   if (isChecked) {
     if (!layer) {
       const targetLayer = layers.value.find((layer: Layer) => layer.id === layerId)
       if (targetLayer) {
+        targetLayer.visible = true
         map.add(targetLayer)
       }
     } else {
@@ -224,6 +233,22 @@ const setupEventListeners = (view: MapView) => {
   })
 }
 
+// 點選地圖顯示地點資訊
+const handleChoosePlaceModeChange = async (newModeValue: boolean) => {
+  isChoosePlaceMode.value = newModeValue
+
+  if (newModeValue && view) {
+    const townLayer = map.findLayerById('townLayer')
+    const countyLayer = map.findLayerById('countyLayer')
+
+    if (!townLayer || !countyLayer) {
+      window.alert('請開啟鄉鎮市區界圖層及縣市界圖層')
+      await nextTick()
+      isChoosePlaceMode.value = false
+    }
+  }
+}
+
 onMounted(async () => {
   if (!mapDiv.value) {
     return
@@ -261,8 +286,13 @@ onUnmounted(() => {
       </CountyDropdown>
 
       <PlaceInfo
-        v-model:isChoosePlaceMode="isChoosePlaceMode"
+        :isChoosePlaceMode="isChoosePlaceMode"
         :selectedPlaceInfo="selectedPlaceInfo"
+        @update:isChoosePlaceMode="
+          (value) => {
+            handleChoosePlaceModeChange(value)
+          }
+        "
       ></PlaceInfo>
 
       <CoordinateConverter style="width: 100%"></CoordinateConverter>
