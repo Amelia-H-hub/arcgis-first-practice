@@ -10,11 +10,16 @@ let _view: MapView | SceneView
 let _graphicsLayer: GraphicsLayer
 let _svm: SketchViewModel
 
+// sketch view model 相關變數
 export const activeTool = ref<string>('')
 export const lastCreatedGraphic = ref<Graphic | null>(null)
 export const showNameInput = ref<Boolean>(false)
 export const graphicName = ref<string>('')
 export const isDeleteMode = ref<Boolean>(false)
+
+// scale bar 相關變數
+export const scaleLabel = ref('')
+export const scaleBarWidth = ref(100)
 
 export const useMapTools = () => {
   const init = (view: MapView | SceneView, graphicsLayer: GraphicsLayer) => {
@@ -172,6 +177,27 @@ export const useMapTools = () => {
     }
   }
 
+  const updateScale = (view: SceneView) => {
+    if (!view.ready) {
+      return
+    }
+
+    const resolution = view.resolution
+
+    if (resolution === undefined) {
+      return
+    }
+
+    const targetWidthPx = 100
+    const actualDistance = resolution * targetWidthPx
+
+    if (actualDistance >= 1000) {
+      scaleLabel.value = `${(actualDistance / 1000).toFixed(1)} km`
+    } else {
+      scaleLabel.value = `${Math.round(actualDistance)} m`
+    }
+  }
+
   return {
     init,
     toggleStartDraw,
@@ -179,5 +205,8 @@ export const useMapTools = () => {
     toggleCancelNaming,
     toggleEditGraphic,
     toggleDeleteGraphic,
+    updateScale,
+    scaleLabel,
+    scaleBarWidth,
   }
 }
