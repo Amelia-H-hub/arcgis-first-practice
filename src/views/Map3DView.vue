@@ -19,12 +19,12 @@ import {
   getTownInfo,
 } from '@/map/utils'
 import { useMapTools } from '@/map/mapTools'
-import LayerList from '@/conponents/LayerList.vue'
-import CountyDropdown from '@/conponents/CountyDropdown.vue'
-import PlaceInfo from '@/conponents/PlaceInfo.vue'
-import SketchTools from '@/conponents/SketchTools.vue'
-import MapFooter from '@/conponents/MapFooter.vue'
-import CoordinateConverter from '@/conponents/CoordinateConverter.vue'
+import LayerList from '@/components/LayerList.vue'
+import CountyDropdown from '@/components/CountyDropdown.vue'
+import PlaceInfo from '@/components/PlaceInfo.vue'
+import SketchTools from '@/components/SketchTools.vue'
+import MapFooter from '@/components/MapFooter.vue'
+import CoordinateConverter from '@/components/CoordinateConverter.vue'
 
 interface County {
   countycode: string
@@ -253,7 +253,7 @@ const handleChoosePlaceModeChange = async (newModeValue: boolean) => {
     const townLayer = map.findLayerById('townLayer')
     const countyLayer = map.findLayerById('countyLayer')
 
-    if (!townLayer || !countyLayer) {
+    if (!townLayer || !countyLayer || !townLayer.visible || !countyLayer.visible) {
       window.alert('請開啟鄉鎮市區界圖層及縣市界圖層')
       await nextTick()
       isChoosePlaceMode.value = false

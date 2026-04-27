@@ -19,12 +19,12 @@ import {
   getTownInfo,
 } from '@/map/utils'
 import { useMapTools } from '@/map/mapTools'
-import LayerList from '@/conponents/LayerList.vue'
-import CountyDropdown from '@/conponents/CountyDropdown.vue'
-import PlaceInfo from '@/conponents/PlaceInfo.vue'
-import SketchTools from '@/conponents/SketchTools.vue'
-import MapFooter from '@/conponents/MapFooter.vue'
-import CoordinateConverter from '@/conponents/CoordinateConverter.vue'
+import LayerList from '@/components/LayerList.vue'
+import CountyDropdown from '@/components/CountyDropdown.vue'
+import PlaceInfo from '@/components/PlaceInfo.vue'
+import SketchTools from '@/components/SketchTools.vue'
+import MapFooter from '@/components/MapFooter.vue'
+import CoordinateConverter from '@/components/CoordinateConverter.vue'
 
 interface ExtentData {
   xmin: string
@@ -146,46 +146,6 @@ const setupWidgets = (view: MapView) => {
   view.ui.move('zoom', 'top-right')
 }
 
-// 聚焦所選縣市
-const focusOnCounty = async (countyCode: string) => {
-  if (currentHighlight) {
-    currentHighlight.remove()
-  }
-
-  if (!countyCode || countyCode === '') {
-    view!.goTo({ center: [121, 23.5], zoom: 7 })
-    return
-  }
-
-  const countyLayer = view!.map?.layers.find((layer) => layer.id === 'countyLayer')
-
-  if (!countyLayer || !countyLayer.visible) {
-    window.alert('請先勾選縣市界圖層')
-    if (countyDropdownRef.value) {
-      countyDropdownRef.value.resetDropdown()
-    }
-    return
-  }
-
-  countyLayer.visible = true
-
-  try {
-    const feature = await getCountyFeature(countyCode, countyLayer as FeatureLayer)
-
-    if (feature) {
-      // highlight 所選區域
-      const layerView = (await view!.whenLayerView(countyLayer!)) as FeatureLayerView
-      currentHighlight = layerView.highlight(feature)
-
-      // 前往所選區域
-      const targetExtent = feature.geometry!.extent
-      view!.goTo(targetExtent!.expand(1.5))
-    }
-  } catch (error) {
-    console.error('查詢區域失敗', error)
-  }
-}
-
 // 綁定事件監聽
 const setupEventListeners = (view: MapView) => {
   // 鼠標移動
@@ -233,6 +193,46 @@ const setupEventListeners = (view: MapView) => {
   })
 }
 
+// 聚焦所選縣市
+const focusOnCounty = async (countyCode: string) => {
+  if (currentHighlight) {
+    currentHighlight.remove()
+  }
+
+  if (!countyCode || countyCode === '') {
+    view!.goTo({ center: [121, 23.5], zoom: 7 })
+    return
+  }
+
+  const countyLayer = view!.map?.layers.find((layer) => layer.id === 'countyLayer')
+
+  if (!countyLayer || !countyLayer.visible) {
+    window.alert('請先勾選縣市界圖層')
+    if (countyDropdownRef.value) {
+      countyDropdownRef.value.resetDropdown()
+    }
+    return
+  }
+
+  countyLayer.visible = true
+
+  try {
+    const feature = await getCountyFeature(countyCode, countyLayer as FeatureLayer)
+
+    if (feature) {
+      // highlight 所選區域
+      const layerView = (await view!.whenLayerView(countyLayer!)) as FeatureLayerView
+      currentHighlight = layerView.highlight(feature)
+
+      // 前往所選區域
+      const targetExtent = feature.geometry!.extent
+      view!.goTo(targetExtent!.expand(1.5))
+    }
+  } catch (error) {
+    console.error('查詢區域失敗', error)
+  }
+}
+
 // 點選地圖顯示地點資訊
 const handleChoosePlaceModeChange = async (newModeValue: boolean) => {
   isChoosePlaceMode.value = newModeValue
@@ -241,7 +241,7 @@ const handleChoosePlaceModeChange = async (newModeValue: boolean) => {
     const townLayer = map.findLayerById('townLayer')
     const countyLayer = map.findLayerById('countyLayer')
 
-    if (!townLayer || !countyLayer) {
+    if (!townLayer || !countyLayer || !townLayer.visible || !countyLayer.visible) {
       window.alert('請開啟鄉鎮市區界圖層及縣市界圖層')
       await nextTick()
       isChoosePlaceMode.value = false
